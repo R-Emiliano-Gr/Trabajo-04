@@ -2,10 +2,10 @@ const taskForm = document.getElementById('task-form');
 const taskInput = document.getElementById('task-input');
 const taskList = document.getElementById('task-list');
 
-// Cargar tareas almacenadas al iniciar
-loadTasks();
+// Cargar tareas almacenadas desde el backend
+loadTasksFromBackend();
 
-taskForm.addEventListener('submit', function(event) {
+taskForm.addEventListener('submit', async function(event) {
     event.preventDefault();
     
     const taskText = taskInput.value.trim();
@@ -14,12 +14,34 @@ taskForm.addEventListener('submit', function(event) {
         return;
     }
 
-    addTask(taskText, false);
+    await addTaskToBackend(taskText);
     taskInput.value = '';
-    saveTasks();
+    loadTasksFromBackend();
 });
 
-function addTask(taskText, completed) {
+// Función para agregar tarea en el backend
+async function addTaskToBackend(taskText) {
+    const response = await fetch('http://localhost:3000/tareas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ descripcion: taskText })
+    });
+    const data = await response.json();
+    return data;
+}
+
+// Función para cargar tareas desde el backend
+async function loadTasksFromBackend() {
+    const response = await fetch('http://localhost:3000/tareas');
+    const data = await response.json();
+    taskList.innerHTML = ''; // Limpiar la lista antes de cargar
+    data.tareas.forEach(task => {
+        addTask(task.id, task.descripcion, task.completada === 1);
+    });
+}
+
+// Función para agregar una tarea en la lista
+function addTask(id, taskText, completed) {
     const li = document.createElement('li');
     
     const taskTextSpan = document.createElement('span');
@@ -33,9 +55,9 @@ function addTask(taskText, completed) {
     // Botón para eliminar la tarea
     const deleteButton = document.createElement('button');
     deleteButton.textContent = 'Eliminar';
-    deleteButton.addEventListener('click', function() {
+    deleteButton.addEventListener('click', async function() {
+        await deleteTaskFromBackend(id);
         li.remove();
-        saveTasks();
     });
 
     // Botón para marcar la tarea como completada
@@ -44,7 +66,10 @@ function addTask(taskText, completed) {
     completeButton.classList.add('complete-button');
     completeButton.addEventListener('click', function() {
         taskTextSpan.classList.toggle('completed-text');
-        saveTasks();
+        if (taskTextSpan.classList.contains('completed-text')) {
+            deleteButton.style.display = 'none'; // Ocultar botón de eliminar cuando esté completada
+            completeButton.disabled = true; // Desactivar botón de completar
+        }
     });
 
     // Crear un contenedor para los botones
@@ -57,22 +82,9 @@ function addTask(taskText, completed) {
     taskList.appendChild(li);
 }
 
-// Guardar tareas en localStorage
-function saveTasks() {
-    const tasks = [];
-    document.querySelectorAll('#task-list li').forEach(li => {
-        tasks.push({
-            text: li.querySelector('.task-text').textContent,
-            completed: li.querySelector('.task-text').classList.contains('completed-text')
-        });
-    });
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-}
-
-// Cargar tareas desde localStorage
-function loadTasks() {
-    const savedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    savedTasks.forEach(task => {
-        addTask(task.text, task.completed);
+// Función para eliminar tarea del backend
+async function deleteTaskFromBackend(id) {
+    await fetch(`http://localhost:3000/tareas/${id}`, {
+        method: 'DELETE'
     });
 }
