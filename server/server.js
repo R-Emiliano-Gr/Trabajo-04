@@ -2,12 +2,13 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const cors = require('cors');
-
+const path = require('path');
 const app = express();
 
 // Middleware
 app.use(bodyParser.json());
 app.use(cors());
+app.use(express.static(path.join(__dirname, '../'))); // Servir archivos estáticos
 
 // Conectar a la base de datos SQLite
 const db = new sqlite3.Database('./tareas.db', (err) => {
@@ -25,7 +26,14 @@ db.run(`CREATE TABLE IF NOT EXISTS tareas (
     completada INTEGER DEFAULT 0
 )`);
 
-// Ruta para agregar una tarea
+// Servir el archivo index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../index.html')); // Ajusta la ruta según tu estructura de carpetas
+});
+
+// Rutas para agregar, obtener y eliminar tareas
+
+// Agregar Tarea
 app.post('/tareas', (req, res) => {
     const { descripcion } = req.body;
     const query = `INSERT INTO tareas (descripcion) VALUES (?)`;
@@ -38,7 +46,7 @@ app.post('/tareas', (req, res) => {
     });
 });
 
-// Ruta para obtener todas las tareas
+// Obtener Tareas
 app.get('/tareas', (req, res) => {
     const query = `SELECT * FROM tareas`;
     db.all(query, [], (err, rows) => {
@@ -50,7 +58,7 @@ app.get('/tareas', (req, res) => {
     });
 });
 
-// Ruta para eliminar una tarea
+// Eliminar Tarea
 app.delete('/tareas/:id', (req, res) => {
     const { id } = req.params;
     const query = `DELETE FROM tareas WHERE id = ?`;
