@@ -2,10 +2,10 @@ const taskForm = document.getElementById('task-form');
 const taskInput = document.getElementById('task-input');
 const taskList = document.getElementById('task-list');
 
-// Cargar tareas almacenadas desde el backend
-loadTasksFromBackend();
+// Cargar tareas almacenadas al iniciar
+loadTasks();
 
-taskForm.addEventListener('submit', async function(event) {
+taskForm.addEventListener('submit', function(event) {
     event.preventDefault();
     
     const taskText = taskInput.value.trim();
@@ -14,34 +14,12 @@ taskForm.addEventListener('submit', async function(event) {
         return;
     }
 
-    await addTaskToBackend(taskText);
+    addTask(taskText, false);
     taskInput.value = '';
-    loadTasksFromBackend();
+    saveTasks();
 });
 
-// Función para agregar tarea en el backend
-async function addTaskToBackend(taskText) {
-    const response = await fetch('http://localhost:3000/tareas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ descripcion: taskText })
-    });
-    const data = await response.json();
-    return data;
-}
-
-// Función para cargar tareas desde el backend
-async function loadTasksFromBackend() {
-    const response = await fetch('http://localhost:3000/tareas');
-    const data = await response.json();
-    taskList.innerHTML = ''; // Limpiar la lista antes de cargar
-    data.tareas.forEach(task => {
-        addTask(task.id, task.descripcion, task.completada === 1);
-    });
-}
-
-// Función para agregar una tarea en la lista
-function addTask(id, taskText, completed) {
+function addTask(taskText, completed, id) {
     const li = document.createElement('li');
     
     const taskTextSpan = document.createElement('span');
@@ -56,7 +34,7 @@ function addTask(id, taskText, completed) {
     const deleteButton = document.createElement('button');
     deleteButton.textContent = 'Eliminar';
     deleteButton.addEventListener('click', async function() {
-        await deleteTaskFromBackend(id);
+        await deleteTask(id);
         li.remove();
     });
 
@@ -64,12 +42,10 @@ function addTask(id, taskText, completed) {
     const completeButton = document.createElement('button');
     completeButton.textContent = 'Completar';
     completeButton.classList.add('complete-button');
-    completeButton.addEventListener('click', function() {
-        taskTextSpan.classList.toggle('completed-text');
-        if (taskTextSpan.classList.contains('completed-text')) {
-            deleteButton.style.display = 'none'; // Ocultar botón de eliminar cuando esté completada
-            completeButton.disabled = true; // Desactivar botón de completar
-        }
+    completeButton.addEventListener('click', async function() {
+        await completeTask(id);
+        taskTextSpan.classList.add('completed-text');
+        completeButton.style.display = 'none';  // Ocultar el botón de completar
     });
 
     // Crear un contenedor para los botones
@@ -82,9 +58,36 @@ function addTask(id, taskText, completed) {
     taskList.appendChild(li);
 }
 
-// Función para eliminar tarea del backend
-async function deleteTaskFromBackend(id) {
+// Guardar tareas en localStorage
+function saveTasks() {
+    const tasks = [];
+    document.querySelectorAll('#task-list li').forEach(li => {
+        tasks.push({
+            text: li.querySelector('.task-text').textContent,
+            completed: li.querySelector('.task-text').classList.contains('completed-text')
+        });
+    });
+}
+
+// Cargar tareas desde el backend
+async function loadTasks() {
+    const response = await fetch('http://localhost:3000/tareas');
+    const data = await response.json();
+    data.tareas.forEach(task => {
+        addTask(task.descripcion, task.completada === 1, task.id);
+    });
+}
+
+// Eliminar tarea desde el backend
+async function deleteTask(id) {
     await fetch(`http://localhost:3000/tareas/${id}`, {
         method: 'DELETE'
+    });
+}
+
+// Marcar tarea como completada en el backend
+async function completeTask(id) {
+    await fetch(`http://localhost:3000/tareas/${id}/completar`, {
+        method: 'PUT'
     });
 }
